@@ -76,10 +76,8 @@ public:
 	std::vector<Coordinate>* Update();
 	std::vector<Coordinate> Path(Coordinate start, Coordinate goal);
 
-	std::list<Node*> m_OpenList;
 	std::priority_queue<Node*, std::vector<Node*>, LowestFCost> m_qOpenList;
 	Node** m_aOpenList;
-	std::list<Node*> m_ClosedList;
 	Node** m_aClosedList;
 	Node* m_CurrentNode;
 
@@ -131,9 +129,6 @@ void AStar::PrintTest()
 
 void AStar::Prepare(Coordinate start, Coordinate goal)
 {
-	m_OpenList.clear();
-	m_ClosedList.clear();
-
 	m_StartNode = new Node(start.X, start.Y);
 	m_GoalNode = new Node(goal.X, goal.Y);
 	m_StartNode->H = (*m_HeuristicMethod)(m_StartNode, m_GoalNode);
