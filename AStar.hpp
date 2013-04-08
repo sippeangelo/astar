@@ -143,7 +143,6 @@ void AStar::Prepare(Coordinate start, Coordinate goal)
 	while (!m_qOpenList.empty())
 		m_qOpenList.pop();
 
-	//m_OpenList.push_back(m_StartNode);
 	m_qOpenList.push(m_StartNode);
 	m_aOpenList[m_StartNode->Y * m_MapWidth + m_StartNode->X] = m_StartNode;
 }
@@ -154,16 +153,6 @@ std::vector<Coordinate>* AStar::Update()
 		return ReconstructPath(m_CurrentNode);
 
 	// Look for the lowest F cost node in the open list
-	/*for (auto it = m_OpenList.begin(); it != m_OpenList.end(); it++)
-	{
-		if (
-			it == m_OpenList.begin()
-			|| (*it)->F < m_CurrentNode->F
-		)
-			m_CurrentNode = (*it);
-	}
-	m_OpenList.remove(m_CurrentNode);
-	m_ClosedList.push_back(m_CurrentNode);*/
 	m_CurrentNode = m_qOpenList.top();
 	m_qOpenList.pop();
 	m_aOpenList[m_CurrentNode->Y * m_MapWidth + m_CurrentNode->X] = nullptr;
@@ -218,27 +207,10 @@ std::vector<Coordinate>* AStar::Update()
 			}				
 
 			// Is the node already present in the closed list?
-			/*if (
-				std::find_if(
-					m_ClosedList.begin(), 
-					m_ClosedList.end(), 
-					[neighbourX, neighbourY](Node* n) {
-						return (neighbourX == n->X && neighbourY == n->Y);
-					}) 
-				!= m_ClosedList.end()
-			)
-				continue;*/
 			if (m_aClosedList[neighbourY * m_MapWidth + neighbourX] != nullptr)
 				continue;
-				
 
 			// Is the node already present in the open list?
-			/*auto inOpenList = std::find_if(
-				m_OpenList.begin(), 
-				m_OpenList.end(), 
-				[neighbourX, neighbourY](Node* n) {
-					return (neighbourX == n->X && neighbourY == n->Y);
-			});*/
 			Node* inOpenList = m_aOpenList[neighbourY * m_MapWidth + neighbourX];
 
 			//if (inOpenList == m_OpenList.end())
@@ -252,22 +224,12 @@ std::vector<Coordinate>* AStar::Update()
 				node->H = h;
 				node->F = g + h;
 				node->Parent = m_CurrentNode;
-				//m_OpenList.push_back(node);
 				m_aOpenList[node->Y * m_MapWidth + node->X] = node;
 				m_qOpenList.push(node);
 			}
 			else
 			{
 				// Check to see if this path to that node is better
-				/*if (m_CurrentNode->G + ((isDiagonal) ? 14 : 10) < (*inOpenList)->G)
-				{
-					int g = m_CurrentNode->G + ((isDiagonal) ? 14 : 10);
-					int h = (*m_HeuristicMethod)((*inOpenList), m_GoalNode) * 10;
-					(*inOpenList)->G = g;
-					(*inOpenList)->H = h;
-					(*inOpenList)->F = g + h;
-					(*inOpenList)->Parent = m_CurrentNode;
-				}*/
 				if (m_CurrentNode->G + ((isDiagonal) ? 14 : 10) < inOpenList->G)
 				{
 					int g = m_CurrentNode->G + ((isDiagonal) ? 14 : 10);
