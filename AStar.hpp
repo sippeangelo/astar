@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <vector>
 #include <queue>
+#include <set>
 #include "DV1419Map.h"
 
 class AStar
@@ -83,6 +84,8 @@ public:
 
 private:
 	bool IsWalkable(int x, int y);
+	std::vector<Node*> IdentifySuccessors(Node* current, Node* start, Node* end);
+	Node* Jump(int currentX, int currentY, int dX, int Dy, Node* start, Node* end);
 	std::vector<Coordinate>* ReconstructPath(Node* finalNode);
 
 	DV1419Map* m_RawMap;
@@ -119,7 +122,6 @@ void AStar::Initialize()
 
 	m_aOpenList = new Node*[m_MapWidth * m_MapHeight];
 	m_aClosedList = new Node*[m_MapWidth * m_MapHeight];
-	
 }
 
 void AStar::PrintTest()
@@ -213,7 +215,6 @@ std::vector<Coordinate>* AStar::Update()
 			// Is the node already present in the open list?
 			Node* inOpenList = m_aOpenList[neighbourY * m_MapWidth + neighbourX];
 
-			//if (inOpenList == m_OpenList.end())
 			if (inOpenList == nullptr)
 			{
 				// Put it in the open list
@@ -238,6 +239,8 @@ std::vector<Coordinate>* AStar::Update()
 					inOpenList->H = h;
 					inOpenList->F = g + h;
 					inOpenList->Parent = m_CurrentNode;
+					// HACK: Rebuild priority queue or it might crash with an "invalid heap" error
+					//std::make_heap(const_cast<Node**>(&m_qOpenList.top()), const_cast<Node**>(&m_qOpenList.top()) + m_qOpenList.size(), LowestFCost());
 				}
 			}				
 		}
@@ -245,6 +248,55 @@ std::vector<Coordinate>* AStar::Update()
 
 	return nullptr;
 }
+
+/*std::vector<AStar::Node*> AStar::IdentifySuccessors(Node* current, Node* start, Node* end)
+{
+	std::vector<Node*> successors;
+	
+	for (int y = -1; y <= 1; y++)
+	{
+		for (int x = -1; x <= 1; x++)
+		{
+			// Ignore the middle node
+			if (x == 0 && y == 0)
+				continue;
+
+			int neighbourX = current->X + x;
+			int neighbourY = current->Y + y;
+
+			// Direction from current node to neighbour
+			int dX = neighbourX - current->X;
+			dX = (dX > 1) ? 1 : ((dX < -1) ? -1 : dX);
+			int dY = neighbourY - current->Y;
+			dY = (dY > 1) ? 1 : ((dY < -1) ? -1 : dY);
+
+			// Try to find a node to jump to
+			Node* jumpPoint = Jump(current->X, current->Y, dX, dY, start, end);
+			if (jumpPoint != nullptr)
+				successors.push_back(jumpPoint);
+		}
+	}
+}*/
+
+/*AStar::Node* AStar::Jump(int currentX, int currentY, int dX, int dY, Node* start, Node* end)
+{
+	int nextX = currentX + dX;
+	int nextY = currentY + dY;
+
+	// Is the coordinate walkable?
+	if (!IsWalkable(nextX, nextY))
+		return nullptr;
+
+	// Check if we reached the goal yet
+	if (nextX == end->X && nextY == end->Y)
+		return new Node(nextX, nextY);
+
+	// Diagonal case
+	if (dX != 0 && dY != 0)
+	{
+
+	}
+}*/
 
 std::vector<Coordinate>* AStar::ReconstructPath( Node* finalNode )
 {
