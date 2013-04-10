@@ -9,6 +9,7 @@
 #include <queue>
 #include <set>
 #include "DV1419Map.h"
+#include <cassert>
 
 class AStar
 {
@@ -17,12 +18,12 @@ public:
 	{
 		Node() : Parent(nullptr) { }
 		Node(int X, int Y): X(X), Y(Y), G(0), H(0), F(0), Parent(nullptr) { }
-
+		
+		int F;
 		int X, Y;
 
 		int G;
 		int H;
-		int F;
 
 		Node* Parent;
 	};
@@ -31,7 +32,8 @@ public:
 	{
 		bool operator()(const Node* l, const Node* r) const
 		{
-			return l->F > r->F;
+			//return l->F > r->F;
+			return l->F < r->F;
 		}
 	};
 
@@ -78,6 +80,8 @@ public:
 	std::vector<Coordinate> Path(Coordinate start, Coordinate goal);
 
 	std::priority_queue<Node*, std::vector<Node*>, LowestFCost> m_qOpenList;
+	std::multiset<Node*, LowestFCost> m_sOpenList;
+
 	Node** m_aOpenList;
 	Node** m_aClosedList;
 	Node* m_CurrentNode;
@@ -108,6 +112,8 @@ void AStar::Initialize()
 
 	for (int i = 0; i < m_MapWidth * m_MapHeight; i++)
 	{
+		//char c = map[i];
+		//m_Map[i] = (c == '.' || c == 'S' || c == 'G');
 		switch (map[i])
 		{
 		case '.':
@@ -122,6 +128,11 @@ void AStar::Initialize()
 
 	m_aOpenList = new Node*[m_MapWidth * m_MapHeight];
 	m_aClosedList = new Node*[m_MapWidth * m_MapHeight];
+	for (int i = 0; i < m_MapWidth * m_MapHeight; i++)
+	{
+		m_aOpenList[i] = nullptr;
+		m_aClosedList[i] = nullptr;
+	}
 }
 
 void AStar::PrintTest()
@@ -142,21 +153,27 @@ void AStar::Prepare(Coordinate start, Coordinate goal)
 		m_aOpenList[i] = nullptr;
 		m_aClosedList[i] = nullptr;
 	}
-	while (!m_qOpenList.empty())
-		m_qOpenList.pop();
+	//while (!m_qOpenList.empty())
+	//	m_qOpenList.pop();
+	m_sOpenList.clear();
 
-	m_qOpenList.push(m_StartNode);
+	//m_qOpenList.push(m_StartNode);
+	m_sOpenList.insert(m_StartNode);
 	m_aOpenList[m_StartNode->Y * m_MapWidth + m_StartNode->X] = m_StartNode;
 }
 
 std::vector<Coordinate>* AStar::Update()
 {
-	if (m_qOpenList.empty())
+	//if (m_qOpenList.empty())
+	if (m_sOpenList.empty())
 		return ReconstructPath(m_CurrentNode);
 
 	// Look for the lowest F cost node in the open list
-	m_CurrentNode = m_qOpenList.top();
-	m_qOpenList.pop();
+	//m_CurrentNode = m_qOpenList.top();
+	//m_qOpenList.pop();
+	m_CurrentNode = *m_sOpenList.begin();
+	m_sOpenList.erase(m_sOpenList.begin());
+
 	m_aOpenList[m_CurrentNode->Y * m_MapWidth + m_CurrentNode->X] = nullptr;
 	m_aClosedList[m_CurrentNode->Y * m_MapWidth + m_CurrentNode->X] = m_CurrentNode;
 
@@ -226,19 +243,25 @@ std::vector<Coordinate>* AStar::Update()
 				node->F = g + h;
 				node->Parent = m_CurrentNode;
 				m_aOpenList[node->Y * m_MapWidth + node->X] = node;
-				m_qOpenList.push(node);
+				//m_qOpenList.push(node);
+				m_sOpenList.insert(node);
 			}
 			else
 			{
 				// Check to see if this path to that node is better
 				if (m_CurrentNode->G + ((isDiagonal) ? 14 : 10) < inOpenList->G)
 				{
+					auto it = m_sOpenList.find(inOpenList);
+					m_sOpenList.erase(it);
+
 					int g = m_CurrentNode->G + ((isDiagonal) ? 14 : 10);
 					int h = (*m_HeuristicMethod)(inOpenList, m_GoalNode) * 10;
 					inOpenList->G = g;
 					inOpenList->H = h;
 					inOpenList->F = g + h;
 					inOpenList->Parent = m_CurrentNode;
+
+					m_sOpenList.insert(inOpenList);
 					// HACK: Rebuild priority queue or it might crash with an "invalid heap" error
 					//std::make_heap(const_cast<Node**>(&m_qOpenList.top()), const_cast<Node**>(&m_qOpenList.top()) + m_qOpenList.size(), LowestFCost());
 				}
