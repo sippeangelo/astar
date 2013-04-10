@@ -9,11 +9,23 @@
 #include <queue>
 #include <set>
 #include "DV1419Map.h"
-#include <cassert>
+#include <boost/heap/fibonacci_heap.hpp>
 
 class AStar
 {
 public:
+	
+	struct Node;
+
+	struct LowestFCost
+	{
+		bool operator()(const Node* l, const Node* r) const
+		{
+			//return l->F > r->F;
+			return l->F > r->F;
+		}
+	};
+
 	struct Node
 	{
 		Node() : Parent(nullptr) { }
@@ -26,16 +38,11 @@ public:
 		int H;
 
 		Node* Parent;
-	};
 
-	struct LowestFCost
-	{
-		bool operator()(const Node* l, const Node* r) const
-		{
-			//return l->F > r->F;
-			return l->F < r->F;
-		}
+		boost::heap::fibonacci_heap<Node*, boost::heap::compare<LowestFCost>>::handle_type QueueHandle;
 	};
+	
+	
 
 	class Heuristics
 	{
@@ -81,6 +88,7 @@ public:
 
 	std::priority_queue<Node*, std::vector<Node*>, LowestFCost> m_qOpenList;
 	std::multiset<Node*, LowestFCost> m_sOpenList;
+	boost::heap::fibonacci_heap<Node*, boost::heap::compare<LowestFCost>> m_bpqOpenList;
 
 	Node** m_aOpenList;
 	Node** m_aClosedList;
@@ -155,24 +163,31 @@ void AStar::Prepare(Coordinate start, Coordinate goal)
 	}
 	//while (!m_qOpenList.empty())
 	//	m_qOpenList.pop();
-	m_sOpenList.clear();
+	//m_sOpenList.clear();
+	m_bpqOpenList.clear();
 
 	//m_qOpenList.push(m_StartNode);
-	m_sOpenList.insert(m_StartNode);
+	//m_sOpenList.insert(m_StartNode);
+	auto handle = m_bpqOpenList.push(m_StartNode);
+	(*handle)->QueueHandle = handle;
 	m_aOpenList[m_StartNode->Y * m_MapWidth + m_StartNode->X] = m_StartNode;
 }
 
 std::vector<Coordinate>* AStar::Update()
 {
+	
+	//if (m_sOpenList.empty())
 	//if (m_qOpenList.empty())
-	if (m_sOpenList.empty())
+	if (m_bpqOpenList.empty())
 		return ReconstructPath(m_CurrentNode);
 
 	// Look for the lowest F cost node in the open list
 	//m_CurrentNode = m_qOpenList.top();
 	//m_qOpenList.pop();
-	m_CurrentNode = *m_sOpenList.begin();
-	m_sOpenList.erase(m_sOpenList.begin());
+	//m_CurrentNode = *m_sOpenList.begin();
+	//m_sOpenList.erase(m_sOpenList.begin());
+	m_CurrentNode = m_bpqOpenList.top();
+	m_bpqOpenList.pop();
 
 	m_aOpenList[m_CurrentNode->Y * m_MapWidth + m_CurrentNode->X] = nullptr;
 	m_aClosedList[m_CurrentNode->Y * m_MapWidth + m_CurrentNode->X] = m_CurrentNode;
@@ -244,15 +259,18 @@ std::vector<Coordinate>* AStar::Update()
 				node->Parent = m_CurrentNode;
 				m_aOpenList[node->Y * m_MapWidth + node->X] = node;
 				//m_qOpenList.push(node);
-				m_sOpenList.insert(node);
+				//m_sOpenList.insert(node);
+				auto handle = m_bpqOpenList.push(node);
+				(*handle)->QueueHandle = handle;
 			}
 			else
 			{
 				// Check to see if this path to that node is better
 				if (m_CurrentNode->G + ((isDiagonal) ? 14 : 10) < inOpenList->G)
 				{
-					auto it = m_sOpenList.find(inOpenList);
-					m_sOpenList.erase(it);
+					//auto it = m_sOpenList.find(inOpenList);
+					//m_sOpenList.erase(it);
+					//auto handle = m_bpqOpenList.
 
 					int g = m_CurrentNode->G + ((isDiagonal) ? 14 : 10);
 					int h = (*m_HeuristicMethod)(inOpenList, m_GoalNode) * 10;
@@ -261,7 +279,10 @@ std::vector<Coordinate>* AStar::Update()
 					inOpenList->F = g + h;
 					inOpenList->Parent = m_CurrentNode;
 
-					m_sOpenList.insert(inOpenList);
+					// Update the priority queue, since the cost was decreased
+					m_bpqOpenList.decrease(inOpenList->QueueHandle);
+
+					//m_sOpenList.insert(inOpenList);
 					// HACK: Rebuild priority queue or it might crash with an "invalid heap" error
 					//std::make_heap(const_cast<Node**>(&m_qOpenList.top()), const_cast<Node**>(&m_qOpenList.top()) + m_qOpenList.size(), LowestFCost());
 				}
