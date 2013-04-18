@@ -128,8 +128,6 @@ void AStar::Initialize()
 
 	for (int i = 0; i < m_MapWidth * m_MapHeight; i++)
 	{
-		//char c = map[i];
-		//m_Map[i] = (c == '.' || c == 'S' || c == 'G');
 		switch (map[i])
 		{
 		case '.':
@@ -169,13 +167,8 @@ void AStar::Prepare(Coordinate start, Coordinate goal)
 		m_aOpenList[i] = nullptr;
 		m_aClosedList[i] = nullptr;
 	}
-	//while (!m_qOpenList.empty())
-	//	m_qOpenList.pop();
-	//m_sOpenList.clear();
 	m_bpqOpenList.clear();
 
-	//m_qOpenList.push(m_StartNode);
-	//m_sOpenList.insert(m_StartNode);
 	auto handle = m_bpqOpenList.push(m_StartNode);
 	(*handle)->QueueHandle = handle;
 	m_aOpenList[m_StartNode->Y * m_MapWidth + m_StartNode->X] = m_StartNode;
@@ -183,17 +176,10 @@ void AStar::Prepare(Coordinate start, Coordinate goal)
 
 std::vector<Coordinate>* AStar::Update()
 {
-	
-	//if (m_sOpenList.empty())
-	//if (m_qOpenList.empty())
 	if (m_bpqOpenList.empty())
 		return ReconstructPath(m_CurrentNode);
 
 	// Look for the lowest F cost node in the open list
-	//m_CurrentNode = m_qOpenList.top();
-	//m_qOpenList.pop();
-	//m_CurrentNode = *m_sOpenList.begin();
-	//m_sOpenList.erase(m_sOpenList.begin());
 	m_CurrentNode = m_bpqOpenList.top();
 	m_bpqOpenList.pop();
 
@@ -225,10 +211,6 @@ std::vector<Coordinate>* AStar::Update()
 			if (isDiagonal)
 			{
 				bool walkUp, walkRight, walkDown, walkLeft;
-				/*walkUp = m_RawMap->isWalkable(currentNode->X, currentNode->Y - 1);
-				walkRight = m_RawMap->isWalkable(currentNode->X + 1, currentNode->Y);
-				walkDown = m_RawMap->isWalkable(currentNode->X, currentNode->Y + 1);
-				walkLeft = m_RawMap->isWalkable(currentNode->X - 1, currentNode->Y);*/
 				walkUp = IsWalkable(m_CurrentNode->X, m_CurrentNode->Y - 1);
 				walkRight = IsWalkable(m_CurrentNode->X + 1, m_CurrentNode->Y);
 				walkDown = IsWalkable(m_CurrentNode->X, m_CurrentNode->Y + 1);
@@ -266,8 +248,6 @@ std::vector<Coordinate>* AStar::Update()
 				node->F = g + h;
 				node->Parent = m_CurrentNode;
 				m_aOpenList[node->Y * m_MapWidth + node->X] = node;
-				//m_qOpenList.push(node);
-				//m_sOpenList.insert(node);
 				auto handle = m_bpqOpenList.push(node);
 				(*handle)->QueueHandle = handle;
 			}
@@ -276,10 +256,6 @@ std::vector<Coordinate>* AStar::Update()
 				// Check to see if this path to that node is better
 				if (m_CurrentNode->G + ((isDiagonal) ? 14 : 10) < inOpenList->G)
 				{
-					//auto it = m_sOpenList.find(inOpenList);
-					//m_sOpenList.erase(it);
-					//auto handle = m_bpqOpenList.
-
 					int g = m_CurrentNode->G + ((isDiagonal) ? 14 : 10);
 					int h = (*m_HeuristicMethod)(inOpenList, m_GoalNode) * 10;
 					inOpenList->G = g;
@@ -289,10 +265,6 @@ std::vector<Coordinate>* AStar::Update()
 
 					// Update the priority queue, since the cost was decreased
 					m_bpqOpenList.decrease(inOpenList->QueueHandle);
-
-					//m_sOpenList.insert(inOpenList);
-					// HACK: Rebuild priority queue or it might crash with an "invalid heap" error
-					//std::make_heap(const_cast<Node**>(&m_qOpenList.top()), const_cast<Node**>(&m_qOpenList.top()) + m_qOpenList.size(), LowestFCost());
 				}
 			}				
 		}
@@ -300,55 +272,6 @@ std::vector<Coordinate>* AStar::Update()
 
 	return nullptr;
 }
-
-/*std::vector<AStar::Node*> AStar::IdentifySuccessors(Node* current, Node* start, Node* end)
-{
-	std::vector<Node*> successors;
-	
-	for (int y = -1; y <= 1; y++)
-	{
-		for (int x = -1; x <= 1; x++)
-		{
-			// Ignore the middle node
-			if (x == 0 && y == 0)
-				continue;
-
-			int neighbourX = current->X + x;
-			int neighbourY = current->Y + y;
-
-			// Direction from current node to neighbour
-			int dX = neighbourX - current->X;
-			dX = (dX > 1) ? 1 : ((dX < -1) ? -1 : dX);
-			int dY = neighbourY - current->Y;
-			dY = (dY > 1) ? 1 : ((dY < -1) ? -1 : dY);
-
-			// Try to find a node to jump to
-			Node* jumpPoint = Jump(current->X, current->Y, dX, dY, start, end);
-			if (jumpPoint != nullptr)
-				successors.push_back(jumpPoint);
-		}
-	}
-}*/
-
-/*AStar::Node* AStar::Jump(int currentX, int currentY, int dX, int dY, Node* start, Node* end)
-{
-	int nextX = currentX + dX;
-	int nextY = currentY + dY;
-
-	// Is the coordinate walkable?
-	if (!IsWalkable(nextX, nextY))
-		return nullptr;
-
-	// Check if we reached the goal yet
-	if (nextX == end->X && nextY == end->Y)
-		return new Node(nextX, nextY);
-
-	// Diagonal case
-	if (dX != 0 && dY != 0)
-	{
-
-	}
-}*/
 
 std::vector<Coordinate>* AStar::ReconstructPath( Node* finalNode )
 {
@@ -377,8 +300,6 @@ std::vector<Coordinate> AStar::Path(Coordinate start, Coordinate goal)
 
 bool AStar::IsWalkable(int x, int y)
 {
-	//return m_RawMap->isWalkable(x, y);
-
 	if (x < 0 || x >= m_MapWidth || y < 0 || y >= m_MapHeight)
 		return false;
 
