@@ -91,8 +91,9 @@ public:
 	void PrintTest();
 
 	void Prepare(Coordinate start, Coordinate goal);
-	std::vector<Coordinate>* Update();
-	std::vector<Coordinate> Path(Coordinate start, Coordinate goal);
+	Node* Update();
+	std::vector<Coordinate>* ReconstructPath(Node* finalNode);
+	std::vector<Coordinate>* Path(Coordinate start, Coordinate goal);
 
 	std::priority_queue<Node*, std::vector<Node*>, LowestFCost> m_qOpenList;
 	std::multiset<Node*, LowestFCost> m_sOpenList;
@@ -106,7 +107,7 @@ private:
 	bool IsWalkable(int x, int y);
 	std::vector<Node*> IdentifySuccessors(Node* current, Node* start, Node* end);
 	Node* Jump(int currentX, int currentY, int dX, int Dy, Node* start, Node* end);
-	std::vector<Coordinate>* ReconstructPath(Node* finalNode);
+	
 
 	DV1419Map* m_RawMap;
 	bool* m_Map;
@@ -174,10 +175,11 @@ void AStar::Prepare(Coordinate start, Coordinate goal)
 	m_aOpenList[m_StartNode->Y * m_MapWidth + m_StartNode->X] = m_StartNode;
 }
 
-std::vector<Coordinate>* AStar::Update()
+AStar::Node* AStar::Update()
 {
+	// TODO: What happens when a path is not found?
 	if (m_bpqOpenList.empty())
-		return ReconstructPath(m_CurrentNode);
+		return m_CurrentNode;
 
 	// Look for the lowest F cost node in the open list
 	m_CurrentNode = m_bpqOpenList.top();
@@ -188,7 +190,7 @@ std::vector<Coordinate>* AStar::Update()
 
 	// Check if we reached the goal yet
 	if (m_CurrentNode->X == m_GoalNode->X && m_CurrentNode->Y == m_GoalNode->Y)
-		return ReconstructPath(m_CurrentNode);
+		return m_CurrentNode;
 
 	// Add neighboring nodes to the open list
 	for (int y = -1; y <= 1; y++)
@@ -273,7 +275,7 @@ std::vector<Coordinate>* AStar::Update()
 	return nullptr;
 }
 
-std::vector<Coordinate>* AStar::ReconstructPath( Node* finalNode )
+std::vector<Coordinate>* AStar::ReconstructPath(Node* finalNode)
 {
 	std::vector<Coordinate>* pathCoordinates = new std::vector<Coordinate>;
 	while (finalNode != nullptr)
@@ -283,19 +285,28 @@ std::vector<Coordinate>* AStar::ReconstructPath( Node* finalNode )
 	}
 	std::reverse(pathCoordinates->begin(), pathCoordinates->end());
 
+	// Cleanup
+	for (int i = 0; i < m_MapWidth * m_MapHeight; i++)
+	{
+		if (m_aClosedList[i] != nullptr)
+			delete m_aClosedList[i];
+		if (m_aOpenList[i] != nullptr)
+			delete m_aOpenList[i];
+	}
+	delete m_GoalNode;
+
 	return pathCoordinates;
 }
 
-std::vector<Coordinate> AStar::Path(Coordinate start, Coordinate goal)
+std::vector<Coordinate>* AStar::Path(Coordinate start, Coordinate goal)
 {
 	Prepare(start, goal);
 
-	std::vector<Coordinate>* path = nullptr;
+	Node* goalNode = nullptr;
+	while (goalNode == nullptr)
+		goalNode = Update();
 
-	while (path == nullptr)
-		path = Update();
-
-	return *path;
+	return ReconstructPath(goalNode);
 }
 
 bool AStar::IsWalkable(int x, int y)

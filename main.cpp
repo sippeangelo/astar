@@ -5,11 +5,11 @@
 #include "timer.h"
 #include <SFML/Graphics.hpp>
 #include <SFML/Window/Keyboard.hpp>
+#include <string>
+#include <sstream>
 
 void graphical()
 {
-	
-	
 	std::cout << "Loading map..." << std::endl;
 	DV1419Map map = DV1419Map("maps/brc505d.map");
 	std::cout << "Map Width: " << map.getWidth() << std::endl;
@@ -59,7 +59,7 @@ void graphical()
 	int totalTime = 0;
 	bool timeDisplayed = false;
 
-	int currentExperiment = 877;
+	int currentExperiment = 564;
 	Experiment experiment = scenario.GetNthExperiment(currentExperiment);
 						aStar.Prepare(
 							Coordinate(experiment.GetStartX(), experiment.GetStartY()), 
@@ -67,7 +67,8 @@ void graphical()
 							);
 
 
-	std::vector<Coordinate>* path = nullptr;
+	//std::vector<Coordinate>* path = nullptr;
+	AStar::Node* foundGoal = nullptr;
 	while (window.isOpen())
 	{
 		sf::Event event;
@@ -94,7 +95,7 @@ void graphical()
 							Coordinate(experiment.GetStartX(), experiment.GetStartY()), 
 							Coordinate(experiment.GetGoalX(), experiment.GetGoalY())
 							);
-						path = nullptr;
+						foundGoal = nullptr;
 						totalTime = 0;
 						timeDisplayed = false;
 						lastExperimentChange = clock.getElapsedTime();
@@ -121,10 +122,11 @@ void graphical()
 		
 		for (int i = 0; i < 25; i++)
 		{
-			if (path != nullptr)
+			if (foundGoal != nullptr)
 			{
 				if (!timeDisplayed)
 				{
+					std::vector<Coordinate>* path = aStar.ReconstructPath(foundGoal);
 					std::cout << "Time: " << totalTime / 1000.0f << " ms" << std::endl;
 					std::cout << "Length: " << map.getPathLength(*path) << std::endl;
 					std::cout << "Optimal Length: " << experiment.GetDistance() << std::endl;
@@ -134,7 +136,7 @@ void graphical()
 			}
 
 			timer.start();
-			path = aStar.Update();
+			foundGoal = aStar.Update();
 			timer.stamp();
 			totalTime += timer.getTimePassed();
 		}
@@ -224,12 +226,12 @@ void tests()
 		std::cout << "\tOptimal Length: " << experiment.GetDistance() << std::endl;
 		std::cout << "Finding path..." << std::endl;
 		timer.start();
-		std::vector<Coordinate> path = aStar.Path(
+		std::vector<Coordinate>* path = aStar.Path(
 			Coordinate(experiment.GetStartX(), experiment.GetStartY()), 
 			Coordinate(experiment.GetGoalX(), experiment.GetGoalY())
 		);
 		timer.stamp();
-		double pathLength = map.getPathLength(path);
+		double pathLength = map.getPathLength(*path);
 		std::cout << "Path Length: " << pathLength;
 		if (abs(pathLength - experiment.GetDistance()) > 1)
 		{
@@ -258,11 +260,11 @@ void tests()
 				}
 			}
 
-		for (auto it = path.begin(); it != path.end(); it++)
+		for (auto it = path->begin(); it != path->end(); it++)
 		{
 			sf::RectangleShape square = sf::RectangleShape(sf::Vector2f(2, 2));
 			square.setPosition((*it).X * 2, (*it).Y * 2);
-			if (it == path.end()-1)
+			if (it == path->end()-1)
 				square.setFillColor(sf::Color::Red);
 			else
 				square.setFillColor(sf::Color::Green);
@@ -293,8 +295,88 @@ void tests()
 
 int main(int argc, char* argv[])
 {
+	if (argc > 1)
+	{
+		std::string mapFile = argv[1];
+		std::ostringstream scenarioFile;
+		scenarioFile << mapFile << ".scen";
 
-	graphical();
+		// Load the map
+		DV1419Map map = DV1419Map(mapFile.c_str());
+		// Load the pathfinder
+		AStar aStar = AStar(&map, *AStar::Heuristics::Diagonal);
+		// Load the scenario
+		ScenarioLoader scenario = ScenarioLoader(scenarioFile.str().c_str());
+
+		int startExperiment = 0;
+		int endExperiment = scenario.GetNumExperiments() - 1;
+
+		// Run a specific experiment if a second argument is supplied
+		if (argc > 2)
+		{
+			istringstream(argv[2]) >> startExperiment;
+			endExperiment = startExperiment;
+		}
+		// Run a range of experiments if a third argument is supplied
+		if (argc > 3)
+		{
+			istringstream(argv[3]) >> endExperiment;
+			if (endExperiment > scenario.GetNumExperiments() - 1)
+				endExperiment = scenario.GetNumExperiments() - 1;
+		}
+
+		std::cout << "Running experiment";
+		if (startExperiment == endExperiment)
+			std::cout << " " << startExperiment << std::endl;
+		else
+			std::cout << "s " << startExperiment << " through " << endExperiment << std::endl;
+
+		// Run the experiment(s)
+		Timer timer;
+		unsigned int totalTime = 0;
+		int failCount = 0;
+		for (int i = startExperiment; i <= endExperiment; i++)
+		{
+			Experiment experiment = scenario.GetNthExperiment(i);
+			Coordinate start = Coordinate(experiment.GetStartX(), experiment.GetStartY());
+			Coordinate goal = Coordinate(experiment.GetGoalX(), experiment.GetGoalY());
+
+			aStar.Prepare(start, goal);
+			AStar::Node* foundGoal = nullptr;
+			timer.start();
+			while (foundGoal == nullptr)
+				foundGoal = aStar.Update();
+			timer.stamp();
+			std::vector<Coordinate>* path = aStar.ReconstructPath(foundGoal);
+
+			totalTime += timer.getTimePassed();
+			
+			double pathLength = map.getPathLength(*path);
+			double optimalLength = experiment.GetDistance();
+
+			bool failed = abs(pathLength - optimalLength) > 1;
+			if (failed)
+				failCount++;
+
+			std::cout << "#" << i << std::endl;
+			std::cout << "Time: " << timer.getTimePassed() / 1000.0f << " ms" << std::endl;
+			std::cout << "Length: " << pathLength << (failed ? " != " : " == ") << optimalLength << std::endl;
+			if (failed)
+				std::cout << "------- FAILED -------" << std::endl;
+
+			delete path;
+		}
+
+		std::cout << "Total time: " << totalTime / 1000.0f << " ms" << std::endl;
+		std::cout << "Average time: " << (float)(totalTime / 1000.0f) / (float)(endExperiment - startExperiment) << " ms" << std::endl;
+		std::cout << "Failure rate: " << failCount << " / " << endExperiment - startExperiment << " (" <<  ((float)failCount/(float)(endExperiment - startExperiment)) * 100.0f << "%)" << std::endl;
+	}
+	else
+	{
+		std::cerr << "No map file specified!" << std::endl;
+	}
+
+	//graphical();
 
 	return 0;
 }
