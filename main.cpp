@@ -18,7 +18,7 @@ void graphical()
 	ScenarioLoader scenario = ScenarioLoader("maps/brc505d.map.scen");
 	std::cout << "Loaded scenario " << scenario.GetScenarioName() << std::endl;
 
-	AStar aStar = AStar(&map, *AStar::Heuristics::Euclidean);
+	AStar aStar = AStar(&map, *AStar::Heuristics::Diagonal);
 	/*aStar.Prepare(
 		Coordinate(100, 160), 
 		Coordinate(76, 24)
@@ -59,7 +59,7 @@ void graphical()
 	int totalTime = 0;
 	bool timeDisplayed = false;
 
-	int currentExperiment = 973;
+	int currentExperiment = 877;
 	Experiment experiment = scenario.GetNthExperiment(currentExperiment);
 						aStar.Prepare(
 							Coordinate(experiment.GetStartX(), experiment.GetStartY()), 

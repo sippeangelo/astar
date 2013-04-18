@@ -14,15 +14,18 @@
 class AStar
 {
 public:
-	
 	struct Node;
 
+	// Comparison function for priority queue
 	struct LowestFCost
 	{
 		bool operator()(const Node* l, const Node* r) const
 		{
-			//return l->F > r->F;
-			return l->F > r->F;
+			// Tie breaking
+			if (l->F == r->F)
+				return l->H > r->H;
+			else
+				return l->F > r->F;
 		}
 	};
 
@@ -41,8 +44,6 @@ public:
 
 		boost::heap::fibonacci_heap<Node*, boost::heap::compare<LowestFCost>>::handle_type QueueHandle;
 	};
-	
-	
 
 	class Heuristics
 	{
@@ -59,15 +60,22 @@ public:
 			return sqrt(pow((double)(start->X - end->X), 2) + pow((double)(start->Y - end->Y), 2));
 		}
 
-		static double Diagonal(Node* start, Node* end)
+		static double Octile(Node* start, Node* end)
 		{
 			int xDist = abs(end->X - start->X);
 			int yDist = abs(end->Y - start->Y);
+			return max(xDist, yDist) + (sqrt((double)2) - 1)*min(xDist, yDist);
+		}
+
+		static double Diagonal(Node* start, Node* end)
+		{
+			int xDist = abs(start->X - end->X);
+			int yDist = abs(start->Y - end->Y);
 
 			if (xDist > yDist)
-				return 1.4 * yDist + (xDist - yDist);
+				return 1.4*yDist + (xDist - yDist);
 			else
-				return 1.4 * xDist + (yDist - xDist);
+				return 1.4*xDist + (yDist - xDist);
 		}
 
 		static double None(Node* start, Node* end)
