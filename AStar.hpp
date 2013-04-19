@@ -89,17 +89,13 @@ public:
 	void Initialize();
 	~AStar();
 
-	void PrintTest();
-
 	void Prepare(Coordinate start, Coordinate goal);
 	Node* Update();
 	std::vector<Coordinate>* ReconstructPath(Node* finalNode);
 	std::vector<Coordinate>* Path(Coordinate start, Coordinate goal);
 
-	std::priority_queue<Node*, std::vector<Node*>, LowestFCost> m_qOpenList;
 	Node** m_Nodes;
 	boost::heap::fibonacci_heap<Node*, boost::heap::compare<LowestFCost>> m_bpqOpenList;
-
 	Node** m_aOpenList;
 	Node** m_aClosedList;
 	Node* m_CurrentNode;
@@ -107,13 +103,12 @@ public:
 private:
 	bool IsWalkable(int x, int y);
 	Node* GetNode(int x, int y);
-	std::vector<Node*> IdentifySuccessors(Node* current, Node* start, Node* end);
-	Node* Jump(int currentX, int currentY, int dX, int Dy, Node* start, Node* end);
 
 	DV1419Map* m_RawMap;
 	bool* m_Map;
 	int m_MapWidth;
 	int m_MapHeight;
+
 	Heuristics::HeuristicMethod m_HeuristicMethod;
 
 	Node* m_StartNode;
@@ -153,11 +148,6 @@ AStar::~AStar()
 	delete[] m_Nodes;
 	delete[] m_aOpenList;
 	delete[] m_aClosedList;
-}
-
-void AStar::PrintTest()
-{
-	std::cout << "PrintTest: " << (*m_HeuristicMethod)(new Node(0, 0), new Node(1, 1)) << std::endl; 
 }
 
 void AStar::Prepare(Coordinate start, Coordinate goal)
@@ -295,10 +285,6 @@ std::vector<Coordinate>* AStar::ReconstructPath(Node* finalNode)
 	{
 		if (m_Nodes[i] != nullptr)
 			delete m_Nodes[i];
-		//if (m_aOpenList[i] != nullptr)
-		//	delete m_aOpenList[i];
-		//if (m_aClosedList[i] != nullptr)
-		//	delete m_aClosedList[i];
 	}
 
 	return pathCoordinates;
