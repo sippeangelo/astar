@@ -87,6 +87,7 @@ public:
 	AStar(DV1419Map* map) : m_RawMap(map), m_HeuristicMethod(Heuristics::Diagonal) { Initialize(); }
 	AStar(DV1419Map* map, Heuristics::HeuristicMethod heuriscitMethod) : m_RawMap(map), m_HeuristicMethod(heuriscitMethod) { Initialize(); }
 	void Initialize();
+	~AStar();
 
 	void PrintTest();
 
@@ -96,7 +97,7 @@ public:
 	std::vector<Coordinate>* Path(Coordinate start, Coordinate goal);
 
 	std::priority_queue<Node*, std::vector<Node*>, LowestFCost> m_qOpenList;
-	std::multiset<Node*, LowestFCost> m_sOpenList;
+	Node** m_Nodes;
 	boost::heap::fibonacci_heap<Node*, boost::heap::compare<LowestFCost>> m_bpqOpenList;
 
 	Node** m_aOpenList;
@@ -105,9 +106,9 @@ public:
 
 private:
 	bool IsWalkable(int x, int y);
+	Node* GetNode(int x, int y);
 	std::vector<Node*> IdentifySuccessors(Node* current, Node* start, Node* end);
 	Node* Jump(int currentX, int currentY, int dX, int Dy, Node* start, Node* end);
-	
 
 	DV1419Map* m_RawMap;
 	bool* m_Map;
@@ -141,13 +142,17 @@ void AStar::Initialize()
 		}
 	}
 
+	m_Nodes = new Node*[m_MapWidth * m_MapHeight];
 	m_aOpenList = new Node*[m_MapWidth * m_MapHeight];
 	m_aClosedList = new Node*[m_MapWidth * m_MapHeight];
-	for (int i = 0; i < m_MapWidth * m_MapHeight; i++)
-	{
-		m_aOpenList[i] = nullptr;
-		m_aClosedList[i] = nullptr;
-	}
+}
+
+AStar::~AStar()
+{
+	delete[] m_Map;
+	delete[] m_Nodes;
+	delete[] m_aOpenList;
+	delete[] m_aClosedList;
 }
 
 void AStar::PrintTest()
@@ -157,18 +162,19 @@ void AStar::PrintTest()
 
 void AStar::Prepare(Coordinate start, Coordinate goal)
 {
-	m_StartNode = new Node(start.X, start.Y);
-	m_GoalNode = new Node(goal.X, goal.Y);
-	m_StartNode->H = (*m_HeuristicMethod)(m_StartNode, m_GoalNode);
-	m_StartNode->F = m_StartNode->H;
-	m_CurrentNode = nullptr;
-
 	for (int i = 0; i < m_MapWidth * m_MapHeight; i++)
 	{
+		m_Nodes[i] = nullptr;
 		m_aOpenList[i] = nullptr;
 		m_aClosedList[i] = nullptr;
 	}
 	m_bpqOpenList.clear();
+	m_CurrentNode = nullptr;
+
+	m_StartNode = GetNode(start.X, start.Y);
+	m_GoalNode = GetNode(goal.X, goal.Y);
+	m_StartNode->H = (*m_HeuristicMethod)(m_StartNode, m_GoalNode);
+	m_StartNode->F = m_StartNode->H;
 
 	auto handle = m_bpqOpenList.push(m_StartNode);
 	(*handle)->QueueHandle = handle;
@@ -242,7 +248,7 @@ AStar::Node* AStar::Update()
 			if (inOpenList == nullptr)
 			{
 				// Put it in the open list
-				Node* node = new Node(neighbourX, neighbourY);
+				Node* node = GetNode(neighbourX, neighbourY);
 				int g = m_CurrentNode->G + ((isDiagonal) ? 14 : 10);
 				int h = (*m_HeuristicMethod)(node, m_GoalNode) * 10;
 				node->G = g;
@@ -264,7 +270,6 @@ AStar::Node* AStar::Update()
 					inOpenList->H = h;
 					inOpenList->F = g + h;
 					inOpenList->Parent = m_CurrentNode;
-
 					// Update the priority queue, since the cost was decreased
 					m_bpqOpenList.decrease(inOpenList->QueueHandle);
 				}
@@ -288,12 +293,13 @@ std::vector<Coordinate>* AStar::ReconstructPath(Node* finalNode)
 	// Cleanup
 	for (int i = 0; i < m_MapWidth * m_MapHeight; i++)
 	{
-		if (m_aClosedList[i] != nullptr)
-			delete m_aClosedList[i];
-		if (m_aOpenList[i] != nullptr)
-			delete m_aOpenList[i];
+		if (m_Nodes[i] != nullptr)
+			delete m_Nodes[i];
+		//if (m_aOpenList[i] != nullptr)
+		//	delete m_aOpenList[i];
+		//if (m_aClosedList[i] != nullptr)
+		//	delete m_aClosedList[i];
 	}
-	delete m_GoalNode;
 
 	return pathCoordinates;
 }
@@ -307,6 +313,20 @@ std::vector<Coordinate>* AStar::Path(Coordinate start, Coordinate goal)
 		goalNode = Update();
 
 	return ReconstructPath(goalNode);
+}
+
+AStar::Node* AStar::GetNode(int x, int y)
+{
+	int index = y * m_MapWidth + x;
+	Node* node = m_Nodes[index];
+
+	if (node == nullptr)
+	{
+		node = new Node(x, y);
+		m_Nodes[index] = node;
+	}
+
+	return node;
 }
 
 bool AStar::IsWalkable(int x, int y)
