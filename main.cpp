@@ -11,11 +11,11 @@
 void graphical()
 {
 	std::cout << "Loading map..." << std::endl;
-	DV1419Map map = DV1419Map("maps/brc505d.map");
+	DV1419Map map = DV1419Map("maps/timbermawhold.map");
 	std::cout << "Map Width: " << map.getWidth() << std::endl;
 	std::cout << "Map Height: " << map.getHeight() << std::endl;
 	// Load the scenario
-	ScenarioLoader scenario = ScenarioLoader("maps/brc505d.map.scen");
+	ScenarioLoader scenario = ScenarioLoader("maps/timbermawhold.map.scen");
 	std::cout << "Loaded scenario " << scenario.GetScenarioName() << std::endl;
 
 	AStar aStar = AStar(&map, *AStar::Heuristics::Diagonal);
@@ -59,12 +59,14 @@ void graphical()
 	int totalTime = 0;
 	bool timeDisplayed = false;
 
-	int currentExperiment = 564;
+	int currentExperiment = 185;
 	Experiment experiment = scenario.GetNthExperiment(currentExperiment);
 						aStar.Prepare(
 							Coordinate(experiment.GetStartX(), experiment.GetStartY()), 
 							Coordinate(experiment.GetGoalX(), experiment.GetGoalY())
 							);
+						std::cout << "Experiment Map Width: " << experiment.GetXScale() << std::endl;
+						std::cout << "Experiment Map Height: " << experiment.GetYScale() << std::endl;
 
 
 	//std::vector<Coordinate>* path = nullptr;
@@ -295,6 +297,9 @@ void tests()
 
 int main(int argc, char* argv[])
 {
+	//graphical();
+	//return 0;
+
 	if (argc > 1)
 	{
 		std::string mapFile = argv[1];
@@ -335,11 +340,15 @@ int main(int argc, char* argv[])
 		Timer timer;
 		unsigned int totalTime = 0;
 		int failCount = 0;
+		int nodesExpanded = 0;
 		for (int i = startExperiment; i <= endExperiment; i++)
 		{
 			Experiment experiment = scenario.GetNthExperiment(i);
 			Coordinate start = Coordinate(experiment.GetStartX(), experiment.GetStartY());
 			Coordinate goal = Coordinate(experiment.GetGoalX(), experiment.GetGoalY());
+
+			std::cout << "Start: " << start.toString() << std::endl;
+			std::cout << "Goal: " << goal.toString() << std::endl;
 
 			aStar.Prepare(start, goal);
 			AStar::Node* foundGoal = nullptr;
@@ -347,6 +356,13 @@ int main(int argc, char* argv[])
 			while (foundGoal == nullptr)
 				foundGoal = aStar.Update();
 			timer.stamp();
+
+			for (int i = 0; i < map.getWidth() * map.getHeight(); i++)
+			{
+				if (aStar.m_Nodes[i] != nullptr)
+					nodesExpanded++;
+			}
+
 			std::vector<Coordinate>* path = aStar.ReconstructPath(foundGoal);
 
 			totalTime += timer.getTimePassed();
@@ -354,13 +370,14 @@ int main(int argc, char* argv[])
 			double pathLength = map.getPathLength(*path);
 			double optimalLength = experiment.GetDistance();
 
-			bool failed = abs(pathLength - optimalLength) > 1;
+			bool failed = abs(pathLength - optimalLength) >= 1;
 			if (failed)
 				failCount++;
 
 			std::cout << "#" << i << std::endl;
 			std::cout << "Time: " << timer.getTimePassed() / 1000.0f << " ms" << std::endl;
 			std::cout << "Length: " << pathLength << (failed ? " != " : " == ") << optimalLength << std::endl;
+			
 			if (failed)
 				std::cout << "------- FAILED -------" << std::endl;
 
@@ -368,6 +385,7 @@ int main(int argc, char* argv[])
 		}
 
 		std::cout << "Total time: " << totalTime / 1000.0f << " ms" << std::endl;
+		std::cout << "Nodes expanded: " << nodesExpanded << std::endl;
 		std::cout << "Average time: " << (float)(totalTime / 1000.0f) / (float)(endExperiment - startExperiment) << " ms" << std::endl;
 		std::cout << "Failure rate: " << failCount << " / " << endExperiment - startExperiment << " (" <<  ((float)failCount/(float)(endExperiment - startExperiment)) * 100.0f << "%)" << std::endl;
 	}
@@ -376,7 +394,6 @@ int main(int argc, char* argv[])
 		std::cerr << "No map file specified!" << std::endl;
 	}
 
-	//graphical();
 
 	return 0;
 }
