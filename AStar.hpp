@@ -21,24 +21,17 @@ public:
 	{
 		bool operator()(const Node* l, const Node* r) const
 		{
-			// Tie breaking
-			if (l->F == r->F)
-				return l->H > r->H;
-			else
-				return l->F > r->F;
+			return l->F > r->F;
 		}
 	};
 
 	struct Node
 	{
-		Node() : Parent(nullptr) { }
+		Node() : X(0), Y(0), G(0), H(0), F(0), Parent(nullptr) { }
 		Node(int X, int Y): X(X), Y(Y), G(0), H(0), F(0), Parent(nullptr) { }
 		
-		int F;
 		int X, Y;
-
-		int G;
-		int H;
+		int G, H, F;
 
 		Node* Parent;
 
@@ -137,7 +130,16 @@ void AStar::Initialize()
 		}
 	}
 
+	// Create a pool of nodes
 	m_Nodes = new Node*[m_MapWidth * m_MapHeight];
+	for (int x = 0; x < m_MapWidth; x++)
+	{
+		for (int y = 0; y < m_MapHeight; y++)
+		{
+			m_Nodes[y * m_MapWidth + x] = new Node(x, y);
+		}
+	}
+
 	m_aOpenList = new Node*[m_MapWidth * m_MapHeight];
 	m_aClosedList = new Node*[m_MapWidth * m_MapHeight];
 }
@@ -145,6 +147,8 @@ void AStar::Initialize()
 AStar::~AStar()
 {
 	delete[] m_Map;
+	for (int i = 0; i < m_MapWidth * m_MapHeight; i++)
+		delete m_Nodes[i];
 	delete[] m_Nodes;
 	delete[] m_aOpenList;
 	delete[] m_aClosedList;
@@ -154,13 +158,16 @@ void AStar::Prepare(Coordinate start, Coordinate goal)
 {
 	for (int i = 0; i < m_MapWidth * m_MapHeight; i++)
 	{
-		m_Nodes[i] = nullptr;
+		m_Nodes[i]->G = 0;
+		m_Nodes[i]->H = 0;
+		m_Nodes[i]->F = 0;
+		m_Nodes[i]->Parent = nullptr;
 		m_aOpenList[i] = nullptr;
 		m_aClosedList[i] = nullptr;
 	}
 	m_bpqOpenList.clear();
-	m_CurrentNode = nullptr;
 
+	m_CurrentNode = nullptr;
 	m_StartNode = GetNode(start.X, start.Y);
 	m_GoalNode = GetNode(goal.X, goal.Y);
 	m_StartNode->H = (*m_HeuristicMethod)(m_StartNode, m_GoalNode);
@@ -185,7 +192,7 @@ AStar::Node* AStar::Update()
 	m_aClosedList[m_CurrentNode->Y * m_MapWidth + m_CurrentNode->X] = m_CurrentNode;
 
 	// Check if we reached the goal yet
-	if (m_CurrentNode->X == m_GoalNode->X && m_CurrentNode->Y == m_GoalNode->Y)
+	if (m_CurrentNode == m_GoalNode)
 		return m_CurrentNode;
 
 	// Add neighboring nodes to the open list
@@ -202,6 +209,10 @@ AStar::Node* AStar::Update()
 
 			// Is the coordinate walkable?
 			if (!IsWalkable(neighbourX, neighbourY))
+				continue;
+
+			// Is the node already present in the closed list?
+			if (m_aClosedList[neighbourY * m_MapWidth + neighbourX] != nullptr)
 				continue;
 
 			// Don't cut corners
@@ -228,9 +239,7 @@ AStar::Node* AStar::Update()
 						continue;
 			}				
 
-			// Is the node already present in the closed list?
-			if (m_aClosedList[neighbourY * m_MapWidth + neighbourX] != nullptr)
-				continue;
+			
 
 			// Is the node already present in the open list?
 			Node* inOpenList = m_aOpenList[neighbourY * m_MapWidth + neighbourX];
@@ -280,13 +289,6 @@ std::vector<Coordinate>* AStar::ReconstructPath(Node* finalNode)
 	}
 	std::reverse(pathCoordinates->begin(), pathCoordinates->end());
 
-	// Cleanup
-	for (int i = 0; i < m_MapWidth * m_MapHeight; i++)
-	{
-		if (m_Nodes[i] != nullptr)
-			delete m_Nodes[i];
-	}
-
 	return pathCoordinates;
 }
 
@@ -305,12 +307,6 @@ AStar::Node* AStar::GetNode(int x, int y)
 {
 	int index = y * m_MapWidth + x;
 	Node* node = m_Nodes[index];
-
-	if (node == nullptr)
-	{
-		node = new Node(x, y);
-		m_Nodes[index] = node;
-	}
 
 	return node;
 }
