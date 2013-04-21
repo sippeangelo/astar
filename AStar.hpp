@@ -207,43 +207,23 @@ AStar::Node* AStar::Update()
 			int neighbourX = m_CurrentNode->X + x;
 			int neighbourY = m_CurrentNode->Y + y;
 
-			// Is the coordinate walkable?
-			if (!IsWalkable(neighbourX, neighbourY))
-				continue;
-
 			// Is the node already present in the closed list?
 			if (m_aClosedList[neighbourY * m_MapWidth + neighbourX] != nullptr)
 				continue;
 
+			// Is the coordinate walkable?
+			if (!IsWalkable(neighbourX, neighbourY))
+				continue;
+
 			// Don't cut corners
 			bool isDiagonal = abs(x) == abs(y);
-			if (isDiagonal)
-			{
-				bool walkUp, walkRight, walkDown, walkLeft;
-				walkUp = IsWalkable(m_CurrentNode->X, m_CurrentNode->Y - 1);
-				walkRight = IsWalkable(m_CurrentNode->X + 1, m_CurrentNode->Y);
-				walkDown = IsWalkable(m_CurrentNode->X, m_CurrentNode->Y + 1);
-				walkLeft = IsWalkable(m_CurrentNode->X - 1, m_CurrentNode->Y);
-
-				if (x == 1 && y == -1) // North-east
-					if (!walkRight || !walkUp)
-						continue;
-				if (x == 1 && y == 1) // South-east
-					if (!walkRight || !walkDown)
-						continue;
-				if (x == -1 && y == 1) // South-west
-					if (!walkLeft || !walkDown)
-						continue;
-				if (x == -1 && y == -1) // North-west
-					if (!walkLeft || !walkUp)
-						continue;
-			}				
-
-			
+			if (isDiagonal 
+				&& (!IsWalkable(m_CurrentNode->X + x, m_CurrentNode->Y) 
+					|| !IsWalkable(m_CurrentNode->X, m_CurrentNode->Y + y)))
+				continue;
 
 			// Is the node already present in the open list?
 			Node* inOpenList = m_aOpenList[neighbourY * m_MapWidth + neighbourX];
-
 			if (inOpenList == nullptr)
 			{
 				// Put it in the open list
