@@ -8,17 +8,17 @@
 #include <string>
 #include <sstream>
 
-void graphical()
+void graphical(DV1419Map &map, AStar &aStar, ScenarioLoader &scenario, int startExperiment)
 {
-	std::cout << "Loading map..." << std::endl;
-	DV1419Map map = DV1419Map("maps/brc505d.map");
+	//std::cout << "Loading map..." << std::endl;
+	//DV1419Map map = DV1419Map("maps/brc505d.map");
 	std::cout << "Map Width: " << map.getWidth() << std::endl;
 	std::cout << "Map Height: " << map.getHeight() << std::endl;
 	// Load the scenario
-	ScenarioLoader scenario = ScenarioLoader("maps/brc505d.map.scen");
+	//ScenarioLoader scenario = ScenarioLoader("maps/brc505d.map.scen");
 	std::cout << "Loaded scenario " << scenario.GetScenarioName() << std::endl;
 
-	AStar aStar = AStar(&map, *AStar::Heuristics::Diagonal);
+	//AStar aStar = AStar(&map, *AStar::Heuristics::Diagonal);
 	/*aStar.Prepare(
 		Coordinate(100, 160), 
 		Coordinate(76, 24)
@@ -59,7 +59,7 @@ void graphical()
 	int totalTime = 0;
 	bool timeDisplayed = false;
 
-	int currentExperiment = 0;
+	int currentExperiment = startExperiment;
 	Experiment experiment = scenario.GetNthExperiment(currentExperiment);
 						aStar.Prepare(
 							Coordinate(experiment.GetStartX(), experiment.GetStartY()), 
@@ -333,6 +333,14 @@ int main(int argc, char* argv[])
 			istringstream(argv[3]) >> endExperiment;
 			if (endExperiment > scenario.GetNumExperiments() - 1)
 				endExperiment = scenario.GetNumExperiments() - 1;
+		}
+
+		// Run graphical if -g is passed
+		std::string lastArg = argv[argc - 1];
+		if (lastArg == "-g")
+		{
+			graphical(map, aStar, scenario, startExperiment);
+			return 0;
 		}
 
 		std::cout << "Running experiment";
