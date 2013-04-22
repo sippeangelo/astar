@@ -254,7 +254,8 @@ AStar::Node* AStar::Update()
 					inOpenList->F = g + h;
 					inOpenList->Parent = m_CurrentNode;
 					// Update the priority queue, since the cost was decreased
-					m_bpqOpenList.decrease(inOpenList->QueueHandle);
+					// HACK: For some reason, the increase function is faster even though the F-cost was decreased.
+					m_bpqOpenList.increase(inOpenList->QueueHandle);
 				}
 			}				
 		}
