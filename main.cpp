@@ -11,11 +11,11 @@
 void graphical()
 {
 	std::cout << "Loading map..." << std::endl;
-	DV1419Map map = DV1419Map("maps/timbermawhold.map");
+	DV1419Map map = DV1419Map("maps/brc505d.map");
 	std::cout << "Map Width: " << map.getWidth() << std::endl;
 	std::cout << "Map Height: " << map.getHeight() << std::endl;
 	// Load the scenario
-	ScenarioLoader scenario = ScenarioLoader("maps/timbermawhold.map.scen");
+	ScenarioLoader scenario = ScenarioLoader("maps/brc505d.map.scen");
 	std::cout << "Loaded scenario " << scenario.GetScenarioName() << std::endl;
 
 	AStar aStar = AStar(&map, *AStar::Heuristics::Diagonal);
@@ -59,7 +59,7 @@ void graphical()
 	int totalTime = 0;
 	bool timeDisplayed = false;
 
-	int currentExperiment = 185;
+	int currentExperiment = 0;
 	Experiment experiment = scenario.GetNthExperiment(currentExperiment);
 						aStar.Prepare(
 							Coordinate(experiment.GetStartX(), experiment.GetStartY()), 
@@ -167,15 +167,19 @@ void graphical()
 			for (int y = 0; y < map.getHeight(); y++)
 			{
 				int i = y * map.getWidth() + x;
-				if (aStar.m_aOpenList[i] != nullptr)
+				AStar::Node* node = aStar.m_Nodes[i];
+				if (node != nullptr)
 				{
-					openListBrush.setPosition(x * 2, y * 2);
-					window.draw(openListBrush);
-				}
-				if (aStar.m_aClosedList[i] != nullptr)
-				{
-					closedListBrush.setPosition(x * 2, y * 2);
-					window.draw(closedListBrush);
+					if (node->Open)
+					{
+						openListBrush.setPosition(x * 2, y * 2);
+						window.draw(openListBrush);
+					}
+					if (node->Closed)
+					{
+						closedListBrush.setPosition(x * 2, y * 2);
+						window.draw(closedListBrush);
+					}
 				}
 			}
 		}
@@ -188,8 +192,6 @@ void graphical()
 
 		window.display();
 	}
-
-
 }
 
 void tests()

@@ -26,11 +26,14 @@ public:
 	/// </summary>
 	struct Node
 	{
-		Node() : X(0), Y(0), G(0), H(0), F(0), Parent(nullptr) { }
-		Node(int X, int Y): X(X), Y(Y), G(0), H(0), F(0), Parent(nullptr) { }
+		Node() : X(0), Y(0), G(0), H(0), F(0), Open(false), Closed(false), Parent(nullptr) { }
+		Node(int X, int Y): X(X), Y(Y), G(0), H(0), F(0), Open(false), Closed(false), Parent(nullptr) { }
 		
 		int X, Y;
 		int G, H, F;
+
+		bool Open;
+		bool Closed;
 
 		Node* Parent;
 
@@ -90,9 +93,7 @@ public:
 	std::vector<Coordinate>* ReconstructPath(Node* finalNode);
 
 	Node** m_Nodes;
-	std::multiset<Node*, LowestFCost> m_pqOpenList;
-	Node** m_aOpenList;
-	Node** m_aClosedList;
+	std::multiset<Node*, LowestFCost> m_OpenList;
 	Node* m_CurrentNode;
 
 private:
@@ -137,13 +138,8 @@ void AStar::Initialize()
 	// Create a pool of nodes
 	m_Nodes = new Node*[m_MapWidth * m_MapHeight];
 	for (int x = 0; x < m_MapWidth; x++)
-	{
 		for (int y = 0; y < m_MapHeight; y++)
 			m_Nodes[y * m_MapWidth + x] = new Node(x, y);
-	}
-
-	m_aOpenList = new Node*[m_MapWidth * m_MapHeight];
-	m_aClosedList = new Node*[m_MapWidth * m_MapHeight];
 }
 
 /// <summary>
@@ -155,8 +151,6 @@ AStar::~AStar()
 	for (int i = 0; i < m_MapWidth * m_MapHeight; i++)
 		delete m_Nodes[i];
 	delete[] m_Nodes;
-	delete[] m_aOpenList;
-	delete[] m_aClosedList;
 }
 
 /// <summary>
@@ -186,29 +180,28 @@ std::vector<Coordinate>* AStar::Path(Coordinate start, Coordinate goal)
 /// <param name="goal">The goal coordinate.</param>
 void AStar::Prepare(Coordinate start, Coordinate goal)
 {
+	m_CurrentNode = nullptr;
+	// Reset the pooled nodes
 	for (int i = 0; i < m_MapWidth * m_MapHeight; i++)
 	{
-		// Reset the pooled nodes
 		m_Nodes[i]->G = 0;
 		m_Nodes[i]->H = 0;
 		m_Nodes[i]->F = 0;
+		m_Nodes[i]->Open = false;
+		m_Nodes[i]->Closed = false;
 		m_Nodes[i]->Parent = nullptr;
-		// Reset the open and closed list
-		m_aOpenList[i] = nullptr;
-		m_aClosedList[i] = nullptr;
 	}
-	// Reset the open list priority queue
-	m_pqOpenList.clear();
-	m_CurrentNode = nullptr;
+	// Reset the open list
+	m_OpenList.clear();
 
 	// Set up the initial nodes
 	m_StartNode = GetNode(start.X, start.Y);
 	m_GoalNode = GetNode(goal.X, goal.Y);
 	m_StartNode->H = (*m_HeuristicMethod)(m_StartNode, m_GoalNode);
 	m_StartNode->F = m_StartNode->H;
+	m_StartNode->Open = true;
 	// Insert the first node into the open list and store the iterator
-	m_StartNode->Iterator = m_pqOpenList.insert(m_StartNode);
-	m_aOpenList[m_StartNode->Y * m_MapWidth + m_StartNode->X] = m_StartNode;
+	m_StartNode->Iterator = m_OpenList.insert(m_StartNode);
 }
 
 /// <summary>
@@ -217,16 +210,17 @@ void AStar::Prepare(Coordinate start, Coordinate goal)
 /// <returns></returns>
 AStar::Node* AStar::Update()
 {
-	if (m_pqOpenList.empty())
+	// If the open list is empty, we're done here.
+	if (m_OpenList.empty())
 		return m_CurrentNode;
 
 	// Look for the lowest F cost node in the open list
-	auto it = m_pqOpenList.begin();
+	auto it = m_OpenList.begin();
 	m_CurrentNode = *it;
-	m_pqOpenList.erase(it);
-
-	m_aOpenList[m_CurrentNode->Y * m_MapWidth + m_CurrentNode->X] = nullptr;
-	m_aClosedList[m_CurrentNode->Y * m_MapWidth + m_CurrentNode->X] = m_CurrentNode;
+	m_OpenList.erase(it);
+	// Put it in the "closed list"
+	m_CurrentNode->Open = false;
+	m_CurrentNode->Closed = true;
 
 	// Check if we reached the goal yet
 	if (m_CurrentNode == m_GoalNode)
@@ -248,8 +242,11 @@ AStar::Node* AStar::Update()
 			if (neighbourX < 0 || neighbourX >= m_MapWidth || neighbourY < 0 || neighbourY >= m_MapHeight)
 				continue;
 
+
+			Node* neighbour = GetNode(neighbourX, neighbourY);
+
 			// Is the node already present in the closed list?
-			if (m_aClosedList[neighbourY * m_MapWidth + neighbourX] != nullptr)
+			if (neighbour->Closed)
 				continue;
 
 			// Is the coordinate walkable?
@@ -263,41 +260,36 @@ AStar::Node* AStar::Update()
 					|| !IsWalkable(m_CurrentNode->X, m_CurrentNode->Y + y)))
 				continue;
 
-			// Is the node already present in the open list?
-			Node* inOpenList = m_aOpenList[neighbourY * m_MapWidth + neighbourX];
-			if (inOpenList == nullptr)
+			// Is the node not in the open list already?
+			if (!neighbour->Open)
 			{
 				// Put it in the open list
-				Node* node = GetNode(neighbourX, neighbourY);
 				int g = m_CurrentNode->G + ((isDiagonal) ? 14 : 10);
-				int h = (*m_HeuristicMethod)(node, m_GoalNode) * 10;
-				node->G = g;
-				node->H = h;
-				node->F = g + h;
-				node->Parent = m_CurrentNode;
-				m_aOpenList[node->Y * m_MapWidth + node->X] = node;
-				node->Iterator = m_pqOpenList.insert(node);
+				int h = (*m_HeuristicMethod)(neighbour, m_GoalNode) * 10;
+				neighbour->G = g;
+				neighbour->H = h;
+				neighbour->F = g + h;
+				neighbour->Parent = m_CurrentNode;
+				neighbour->Open = true;
+				neighbour->Iterator = m_OpenList.insert(neighbour);
 			}
-			else
+			// Otherwise, check if this path to that node is better
+			else if (m_CurrentNode->G + ((isDiagonal) ? 14 : 10) < neighbour->G)
 			{
-				// Check to see if this path to that node is better
-				if (m_CurrentNode->G + ((isDiagonal) ? 14 : 10) < inOpenList->G)
-				{
-					// Remove the node from the priority queue
-					m_pqOpenList.erase(inOpenList->Iterator);
+				// Remove the node from the priority queue
+				m_OpenList.erase(neighbour->Iterator);
 
-					// Update it
-					int g = m_CurrentNode->G + ((isDiagonal) ? 14 : 10);
-					int h = (*m_HeuristicMethod)(inOpenList, m_GoalNode) * 10;
-					inOpenList->G = g;
-					inOpenList->H = h;
-					inOpenList->F = g + h;
-					inOpenList->Parent = m_CurrentNode;
+				// Update it
+				int g = m_CurrentNode->G + ((isDiagonal) ? 14 : 10);
+				int h = (*m_HeuristicMethod)(neighbour, m_GoalNode) * 10;
+				neighbour->G = g;
+				neighbour->H = h;
+				neighbour->F = g + h;
+				neighbour->Parent = m_CurrentNode;
 
-					// Insert the node again with an updated F-score
-					inOpenList->Iterator = m_pqOpenList.insert(inOpenList);
-				}
-			}		
+				// Insert the node again with an updated F-score
+				neighbour->Iterator = m_OpenList.insert(neighbour);
+			}	
 		}
 	}
 
