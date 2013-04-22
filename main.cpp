@@ -129,8 +129,11 @@ void graphical()
 				if (!timeDisplayed)
 				{
 					std::vector<Coordinate>* path = aStar.ReconstructPath(foundGoal);
+					double length = 0;
+					if (path->size() != 0)
+						length = map.getPathLength(*path);
 					std::cout << "Time: " << totalTime / 1000.0f << " ms" << std::endl;
-					std::cout << "Length: " << map.getPathLength(*path) << std::endl;
+					std::cout << "Length: " << length << std::endl;
 					std::cout << "Optimal Length: " << experiment.GetDistance() << std::endl;
 					timeDisplayed = true;
 				}
@@ -367,7 +370,10 @@ int main(int argc, char* argv[])
 
 			totalTime += timer.getTimePassed();
 			
-			double pathLength = map.getPathLength(*path);
+			double pathLength = 0;
+			if (path->size() != 0)
+				pathLength = map.getPathLength(*path);
+			
 			double optimalLength = experiment.GetDistance();
 
 			bool failed = abs(pathLength - optimalLength) >= 1;
@@ -377,7 +383,7 @@ int main(int argc, char* argv[])
 			std::cout << "#" << i << std::endl;
 			std::cout << "Time: " << timer.getTimePassed() / 1000.0f << " ms" << std::endl;
 			std::cout << "Length: " << pathLength << (failed ? " != " : " == ") << optimalLength << std::endl;
-			
+
 			if (failed)
 				std::cout << "------- FAILED -------" << std::endl;
 

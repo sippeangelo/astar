@@ -10,7 +10,9 @@ class AStar
 public:
 	struct Node;
 
-	// Comparison function for priority queue
+	/// <summary>
+	/// Comparison function for priority queue
+	/// </summary>
 	struct LowestFCost
 	{
 		bool operator()(const Node* l, const Node* r) const
@@ -19,6 +21,9 @@ public:
 		}
 	};
 
+	/// <summary>
+	/// An internal node structure.
+	/// </summary>
 	struct Node
 	{
 		Node() : X(0), Y(0), G(0), H(0), F(0), Parent(nullptr) { }
@@ -32,6 +37,9 @@ public:
 		std::multiset<Node*, LowestFCost>::iterator Iterator;
 	};
 
+	/// <summary>
+	/// Collection of default heuristic functions.
+	/// </summary>
 	class Heuristics
 	{
 	public:
@@ -76,10 +84,10 @@ public:
 	void Initialize();
 	~AStar();
 
+	std::vector<Coordinate>* Path(Coordinate start, Coordinate goal);
 	void Prepare(Coordinate start, Coordinate goal);
 	Node* Update();
 	std::vector<Coordinate>* ReconstructPath(Node* finalNode);
-	std::vector<Coordinate>* Path(Coordinate start, Coordinate goal);
 
 	Node** m_Nodes;
 	std::multiset<Node*, LowestFCost> m_pqOpenList;
@@ -102,14 +110,16 @@ private:
 	Node* m_GoalNode;
 };
 
+/// <summary>
+/// Initializes this instance.
+/// </summary>
 void AStar::Initialize()
 {
+	// Parse the map
 	m_MapWidth = m_RawMap->getWidth();
 	m_MapHeight = m_RawMap->getHeight();
-
 	m_Map = new bool[m_MapWidth * m_MapHeight];
 	std::string map = m_RawMap->toString();
-
 	for (int i = 0; i < m_MapWidth * m_MapHeight; i++)
 	{
 		switch (map[i])
@@ -129,15 +139,16 @@ void AStar::Initialize()
 	for (int x = 0; x < m_MapWidth; x++)
 	{
 		for (int y = 0; y < m_MapHeight; y++)
-		{
 			m_Nodes[y * m_MapWidth + x] = new Node(x, y);
-		}
 	}
 
 	m_aOpenList = new Node*[m_MapWidth * m_MapHeight];
 	m_aClosedList = new Node*[m_MapWidth * m_MapHeight];
 }
 
+/// <summary>
+/// Finalizes an instance of the <see cref="AStar"/> class.
+/// </summary>
 AStar::~AStar()
 {
 	delete[] m_Map;
@@ -148,32 +159,64 @@ AStar::~AStar()
 	delete[] m_aClosedList;
 }
 
+/// <summary>
+/// Finds a path.
+/// </summary>
+/// <param name="start">The start coordinate.</param>
+/// <param name="goal">The goal coordinate.</param>
+/// <returns>A vector of coordinates that represents the path</returns>
+std::vector<Coordinate>* AStar::Path(Coordinate start, Coordinate goal)
+{
+	if (!IsWalkable(start.X, start.Y) || !IsWalkable(goal.X, goal.Y))
+		return new std::vector<Coordinate>;
+
+	Prepare(start, goal);
+
+	Node* goalNode = nullptr;
+	while (goalNode == nullptr)
+		goalNode = Update();
+
+	return ReconstructPath(goalNode);
+}
+
+/// <summary>
+/// Prepares the pathfinder.
+/// </summary>
+/// <param name="start">The start coordinate.</param>
+/// <param name="goal">The goal coordinate.</param>
 void AStar::Prepare(Coordinate start, Coordinate goal)
 {
 	for (int i = 0; i < m_MapWidth * m_MapHeight; i++)
 	{
+		// Reset the pooled nodes
 		m_Nodes[i]->G = 0;
 		m_Nodes[i]->H = 0;
 		m_Nodes[i]->F = 0;
 		m_Nodes[i]->Parent = nullptr;
+		// Reset the open and closed list
 		m_aOpenList[i] = nullptr;
 		m_aClosedList[i] = nullptr;
 	}
+	// Reset the open list priority queue
 	m_pqOpenList.clear();
-
 	m_CurrentNode = nullptr;
+
+	// Set up the initial nodes
 	m_StartNode = GetNode(start.X, start.Y);
 	m_GoalNode = GetNode(goal.X, goal.Y);
 	m_StartNode->H = (*m_HeuristicMethod)(m_StartNode, m_GoalNode);
 	m_StartNode->F = m_StartNode->H;
-
+	// Insert the first node into the open list and store the iterator
 	m_StartNode->Iterator = m_pqOpenList.insert(m_StartNode);
 	m_aOpenList[m_StartNode->Y * m_MapWidth + m_StartNode->X] = m_StartNode;
 }
 
+/// <summary>
+/// Updates the pathfinder
+/// </summary>
+/// <returns></returns>
 AStar::Node* AStar::Update()
 {
-	// TODO: What happens when a path is not found?
 	if (m_pqOpenList.empty())
 		return m_CurrentNode;
 
@@ -254,37 +297,44 @@ AStar::Node* AStar::Update()
 					// Insert the node again with an updated F-score
 					inOpenList->Iterator = m_pqOpenList.insert(inOpenList);
 				}
-			}				
+			}		
 		}
 	}
 
 	return nullptr;
 }
 
+/// <summary>
+/// Reconstructs the path by following the parents back up.
+/// </summary>
+/// <param name="finalNode">The final node.</param>
+/// <returns>A vector of coordinates that represents the path</returns>
 std::vector<Coordinate>* AStar::ReconstructPath(Node* finalNode)
 {
 	std::vector<Coordinate>* pathCoordinates = new std::vector<Coordinate>;
+
+	// If a path wasn't found
+	if (finalNode != m_GoalNode)
+		return pathCoordinates;
+
+	// Reconstruct the path
 	while (finalNode != nullptr)
 	{
 		pathCoordinates->push_back(Coordinate(finalNode->X, finalNode->Y));
 		finalNode = finalNode->Parent;
 	}
+	// Reverse the vector so the start is at the beginning
 	std::reverse(pathCoordinates->begin(), pathCoordinates->end());
 
 	return pathCoordinates;
 }
 
-std::vector<Coordinate>* AStar::Path(Coordinate start, Coordinate goal)
-{
-	Prepare(start, goal);
-
-	Node* goalNode = nullptr;
-	while (goalNode == nullptr)
-		goalNode = Update();
-
-	return ReconstructPath(goalNode);
-}
-
+/// <summary>
+/// Gets the node that corresponds to the X and Y coordinates.
+/// </summary>
+/// <param name="x">The x-coordinate.</param>
+/// <param name="y">The y-coordinate.</param>
+/// <returns>A node</returns>
 AStar::Node* AStar::GetNode(int x, int y)
 {
 	int index = y * m_MapWidth + x;
@@ -293,6 +343,12 @@ AStar::Node* AStar::GetNode(int x, int y)
 	return node;
 }
 
+/// <summary>
+/// Determines whether the specified coordinate is walkable on the map.
+/// </summary>
+/// <param name="x">The x-coordinate.</param>
+/// <param name="y">The y-coordinate.</param>
+/// <returns></returns>
 bool AStar::IsWalkable(int x, int y)
 {
 	if (x < 0 || x >= m_MapWidth || y < 0 || y >= m_MapHeight)

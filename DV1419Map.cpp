@@ -75,7 +75,7 @@ bool DV1419Map::isWalkable(int x, int y) const
 
 double DV1419Map::getPathLength(const vector<Coordinate>& moves) const
 {
-	//assert(moves.size() > 1);
+	assert(moves.size() > 1);
 	double length = 0.0;
 	if (!isWalkable(moves.front()))
 	{
