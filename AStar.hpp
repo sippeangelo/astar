@@ -207,6 +207,10 @@ AStar::Node* AStar::Update()
 			int neighbourX = m_CurrentNode->X + x;
 			int neighbourY = m_CurrentNode->Y + y;
 
+			// Is the coordinate within bounds?
+			if (neighbourX < 0 || neighbourX >= m_MapWidth || neighbourY < 0 || neighbourY >= m_MapHeight)
+				continue;
+
 			// Is the node already present in the closed list?
 			if (m_aClosedList[neighbourY * m_MapWidth + neighbourX] != nullptr)
 				continue;
