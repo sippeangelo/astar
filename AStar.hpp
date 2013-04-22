@@ -1,15 +1,9 @@
 #ifndef ASTAR_HPP
 #define ASTAR_HPP
 
-#include <iostream>
 #include <cmath>
-#include <list>
-#include <algorithm>
-#include <vector>
-#include <queue>
 #include <set>
 #include "DV1419Map.h"
-#include <boost/heap/fibonacci_heap.hpp>
 
 class AStar
 {
@@ -21,7 +15,7 @@ public:
 	{
 		bool operator()(const Node* l, const Node* r) const
 		{
-			return l->F > r->F;
+			return l->F < r->F;
 		}
 	};
 
@@ -35,7 +29,7 @@ public:
 
 		Node* Parent;
 
-		boost::heap::fibonacci_heap<Node*, boost::heap::compare<LowestFCost>>::handle_type QueueHandle;
+		std::multiset<Node*, LowestFCost>::iterator Iterator;
 	};
 
 	class Heuristics
@@ -88,7 +82,7 @@ public:
 	std::vector<Coordinate>* Path(Coordinate start, Coordinate goal);
 
 	Node** m_Nodes;
-	boost::heap::fibonacci_heap<Node*, boost::heap::compare<LowestFCost>> m_bpqOpenList;
+	std::multiset<Node*, LowestFCost> m_pqOpenList;
 	Node** m_aOpenList;
 	Node** m_aClosedList;
 	Node* m_CurrentNode;
@@ -165,7 +159,7 @@ void AStar::Prepare(Coordinate start, Coordinate goal)
 		m_aOpenList[i] = nullptr;
 		m_aClosedList[i] = nullptr;
 	}
-	m_bpqOpenList.clear();
+	m_pqOpenList.clear();
 
 	m_CurrentNode = nullptr;
 	m_StartNode = GetNode(start.X, start.Y);
@@ -173,20 +167,20 @@ void AStar::Prepare(Coordinate start, Coordinate goal)
 	m_StartNode->H = (*m_HeuristicMethod)(m_StartNode, m_GoalNode);
 	m_StartNode->F = m_StartNode->H;
 
-	auto handle = m_bpqOpenList.push(m_StartNode);
-	(*handle)->QueueHandle = handle;
+	m_StartNode->Iterator = m_pqOpenList.insert(m_StartNode);
 	m_aOpenList[m_StartNode->Y * m_MapWidth + m_StartNode->X] = m_StartNode;
 }
 
 AStar::Node* AStar::Update()
 {
 	// TODO: What happens when a path is not found?
-	if (m_bpqOpenList.empty())
+	if (m_pqOpenList.empty())
 		return m_CurrentNode;
 
 	// Look for the lowest F cost node in the open list
-	m_CurrentNode = m_bpqOpenList.top();
-	m_bpqOpenList.pop();
+	auto it = m_pqOpenList.begin();
+	m_CurrentNode = *it;
+	m_pqOpenList.erase(it);
 
 	m_aOpenList[m_CurrentNode->Y * m_MapWidth + m_CurrentNode->X] = nullptr;
 	m_aClosedList[m_CurrentNode->Y * m_MapWidth + m_CurrentNode->X] = m_CurrentNode;
@@ -239,23 +233,26 @@ AStar::Node* AStar::Update()
 				node->F = g + h;
 				node->Parent = m_CurrentNode;
 				m_aOpenList[node->Y * m_MapWidth + node->X] = node;
-				auto handle = m_bpqOpenList.push(node);
-				(*handle)->QueueHandle = handle;
+				node->Iterator = m_pqOpenList.insert(node);
 			}
 			else
 			{
 				// Check to see if this path to that node is better
 				if (m_CurrentNode->G + ((isDiagonal) ? 14 : 10) < inOpenList->G)
 				{
+					// Remove the node from the priority queue
+					m_pqOpenList.erase(inOpenList->Iterator);
+
+					// Update it
 					int g = m_CurrentNode->G + ((isDiagonal) ? 14 : 10);
 					int h = (*m_HeuristicMethod)(inOpenList, m_GoalNode) * 10;
 					inOpenList->G = g;
 					inOpenList->H = h;
 					inOpenList->F = g + h;
 					inOpenList->Parent = m_CurrentNode;
-					// Update the priority queue, since the cost was decreased
-					// HACK: For some reason, the increase function is faster even though the F-cost was decreased.
-					m_bpqOpenList.increase(inOpenList->QueueHandle);
+
+					// Insert the node again with an updated F-score
+					inOpenList->Iterator = m_pqOpenList.insert(inOpenList);
 				}
 			}				
 		}
