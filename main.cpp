@@ -391,7 +391,7 @@ int main(int argc, char* argv[])
 				failCount++;
 
 			std::cout << "#" << i << std::endl;
-			std::cout << "Time: " << timer.getTimePassed() / 1000.0f << " ms" << std::endl;
+			std::cout << "Time: " << timer.getTimePassed() / 1000.0f << " ms (" << timer.getTimePassed() << " microseconds)" << std::endl;
 			std::cout << "Length: " << pathLength << (failed ? " != " : " == ") << optimalLength << std::endl;
 
 			if (failed)
@@ -400,16 +400,16 @@ int main(int argc, char* argv[])
 			delete path;
 		}
 
-		std::cout << "Total time: " << totalTime / 1000.0f << " ms" << std::endl;
+		std::cout << std::endl;
 		std::cout << "Nodes expanded: " << nodesExpanded << std::endl;
-		std::cout << "Average time: " << (float)(totalTime / 1000.0f) / (float)(endExperiment - startExperiment) << " ms" << std::endl;
+		std::cout << "Total time: " << totalTime / 1000.0f << " ms (" << totalTime << " microseconds)" << std::endl;
+		std::cout << "Average time: " << (float)(totalTime / 1000.0f) / (float)(endExperiment - startExperiment) << " ms (" << (float)totalTime/(float)(endExperiment - startExperiment) << " microseconds)" << std::endl;
 		std::cout << "Failure rate: " << failCount << " / " << endExperiment - startExperiment << " (" <<  ((float)failCount/(float)(endExperiment - startExperiment)) * 100.0f << "%)" << std::endl;
 	}
 	else
 	{
 		std::cerr << "No map file specified!" << std::endl;
 	}
-
 
 	return 0;
 }
