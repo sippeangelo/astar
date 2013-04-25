@@ -194,6 +194,140 @@ void graphical(DV1419Map &map, AStar &aStar, ScenarioLoader &scenario, int start
 	}
 }
 
+void graphical2(DV1419Map &map, AStar &aStar, ScenarioLoader &scenario, int startExperiment)
+{
+	const int windowWidth = 800;
+	const int windowHeight = 600;
+	float cameraScale = 1.0f;
+	int viewportWidth = windowWidth * (1 / ((float)windowWidth / (float)map.getWidth()));
+	int viewportHeight = windowHeight * (1 / ((float)windowHeight / (float)map.getHeight()));
+
+	sf::RenderWindow window(sf::VideoMode(windowWidth, windowHeight), "A*");
+	sf::View view(sf::FloatRect(0, 0, viewportWidth, viewportHeight));
+	window.setView(view);
+
+	sf::RectangleShape mapBrush = sf::RectangleShape(sf::Vector2f(1, 1));
+	mapBrush.setFillColor(sf::Color::Blue);
+	sf::RectangleShape startBrush = sf::RectangleShape(sf::Vector2f(1, 1));
+	startBrush.setFillColor(sf::Color::Magenta);
+	sf::RectangleShape goalBrush = sf::RectangleShape(sf::Vector2f(1, 1));
+	goalBrush.setFillColor(sf::Color::Red);
+	sf::RectangleShape openListBrush = sf::RectangleShape(sf::Vector2f(1, 1));
+	openListBrush.setFillColor(sf::Color::Cyan);
+	sf::RectangleShape closedListBrush = sf::RectangleShape(sf::Vector2f(1, 1));
+	closedListBrush.setFillColor(sf::Color(50, 50, 50));
+	sf::RectangleShape pathBrush = sf::RectangleShape(sf::Vector2f(1, 1));
+	pathBrush.setFillColor(sf::Color::Green);
+
+	// Pre-render the map
+	sf::RenderTexture mapTexture;
+	mapTexture.create(map.getWidth(), map.getHeight());
+	mapTexture.clear();
+	for (int x = 0; x < map.getWidth(); x++)
+	{
+		for (int y = 0; y < map.getHeight(); y++)
+		{
+			if (!map.isWalkable(x, y))
+			{
+				mapBrush.setPosition(x, y);
+				mapTexture.draw(mapBrush);
+			}
+		}
+	}
+	mapTexture.display();
+
+	Coordinate* startCoord = nullptr;
+	Coordinate* goalCoord = nullptr;
+	AStar::Node* foundGoal = nullptr;
+
+	while (window.isOpen())
+	{
+		sf::Event event;
+		while (window.pollEvent(event))
+		{
+			if (event.type == sf::Event::Closed)
+				window.close();
+			if (event.type == sf::Event::MouseButtonPressed)
+			{
+				sf::Vector2f mousePos = window.convertCoords(sf::Vector2i(event.mouseButton.x, event.mouseButton.y));
+				std::cout << "(" << mousePos.x << ", " << mousePos.y << ")" << std::endl;
+
+				if (startCoord == nullptr)
+				{
+					startCoord = new Coordinate(mousePos.x, mousePos.y);
+					foundGoal = nullptr;
+				}
+				else if (goalCoord == nullptr)
+					goalCoord = new Coordinate(mousePos.x, mousePos.y);
+
+				if (startCoord != nullptr && goalCoord != nullptr)
+				{
+					aStar.Prepare(*startCoord, *goalCoord);
+				}
+			}
+		}
+
+		for (int i = 0; i < 100; i++)
+		{
+			if (startCoord != nullptr && goalCoord != nullptr && foundGoal == nullptr)
+			{
+				foundGoal = aStar.Update();
+				if (foundGoal != nullptr)
+				{
+					aStar.ReconstructPath(foundGoal);
+					startCoord = nullptr;
+					goalCoord = nullptr;
+				}
+			}
+		}
+
+		window.clear(sf::Color::Black);
+
+		window.draw(sf::Sprite(mapTexture.getTexture()));
+
+		for (int x = 0; x < map.getWidth(); x++)
+		{
+			for (int y = 0; y < map.getHeight(); y++)
+			{
+				int i = y * map.getWidth() + x;
+				AStar::Node* node = aStar.m_Nodes[i];
+				if (node != nullptr)
+				{
+					if (node->Open)
+					{
+						openListBrush.setPosition(x, y);
+						window.draw(openListBrush);
+					}
+					if (node->Closed)
+					{
+						closedListBrush.setPosition(x, y);
+						window.draw(closedListBrush);
+					}
+				}
+			}
+		}
+		
+		for (AStar::Node* n = aStar.m_CurrentNode; n != nullptr; n = n->Parent)
+		{
+			pathBrush.setPosition(n->X, n->Y);
+			window.draw(pathBrush);
+		}
+
+		if (startCoord != nullptr)
+		{
+			startBrush.setPosition(startCoord->X, startCoord->Y);
+			window.draw(startBrush);
+		}
+		if (goalCoord != nullptr)
+		{
+			goalBrush.setPosition(goalCoord->X, goalCoord->Y);
+			window.draw(goalBrush);
+		}
+
+		window.display();
+	}
+}
+
 void tests()
 {
 	std::cout << "Loading map..." << std::endl;
@@ -339,7 +473,7 @@ int main(int argc, char* argv[])
 		std::string lastArg = argv[argc - 1];
 		if (lastArg == "-g")
 		{
-			graphical(map, aStar, scenario, startExperiment);
+			graphical2(map, aStar, scenario, startExperiment);
 			return 0;
 		}
 

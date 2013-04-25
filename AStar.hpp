@@ -135,6 +135,8 @@ void AStar::Initialize()
 		}
 	}
 
+	m_CurrentNode = nullptr;
+
 	// Create a pool of nodes
 	m_Nodes = new Node*[m_MapWidth * m_MapHeight];
 	for (int x = 0; x < m_MapWidth; x++)
@@ -288,7 +290,7 @@ AStar::Node* AStar::Update()
 
 				// Insert the node again with an updated F-score
 				neighbour->Iterator = m_OpenList.insert(neighbour);
-			}	
+			}
 		}
 	}
 
